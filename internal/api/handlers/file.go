@@ -68,10 +68,37 @@ func (h *FileHandler) CreateFile(c *gin.Context) {
         return
     }
 
+    // Validate required fields
+    if file.Name == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "File name is required"})
+        return
+    }
+    if file.Path == "" {
+        c.JSON(http.StatusBadRequest, gin.H{"error": "File path is required"})
+        return
+    }
+
+    // Set project ID and uploaded_by from context
     file.ProjectID = uint(projectID)
+    
+    // Get user ID from JWT token context
+    if userID, exists := c.Get("userID"); exists {
+        file.UploadedBy = userID.(uint)
+    }
+
+    // Verify project exists
+    var project models.Project
+    if err := h.db.First(&project, projectID).Error; err != nil {
+        c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+        return
+    }
 
     if err := h.db.Create(&file).Error; err != nil {
-        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create file"})
+        // Log the actual error for debugging
+        c.JSON(http.StatusInternalServerError, gin.H{
+            "error": "Failed to create file",
+            "details": err.Error(),
+        })
         return
     }
 

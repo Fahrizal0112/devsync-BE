@@ -54,9 +54,9 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
         return
     }
 
-    // Find or create user
+    // Find or create user - gunakan git_hub_id bukan github_id
     var user models.User
-    result := h.db.Where("github_id = ?", githubUser.ID).First(&user)
+    result := h.db.Where("git_hub_id = ?", githubUser.ID).First(&user)
     if result.Error != nil {
         if result.Error == gorm.ErrRecordNotFound {
             // Create new user
@@ -68,7 +68,7 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
                 AvatarURL:   githubUser.AvatarURL,
                 AccessToken: accessToken,
             }
-            if err := h.db.Create(&user).Error; err != nil {
+            if createErr := h.db.Create(&user).Error; createErr != nil {
                 c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
                 return
             }
@@ -79,10 +79,15 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
     } else {
         // Update existing user
         user.AccessToken = accessToken
-        user.AvatarURL = githubUser.AvatarURL
-        user.Name = githubUser.Name
-        h.db.Save(&user)
+        if updateErr := h.db.Save(&user).Error; updateErr != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+            return
+        }
     }
+
+    user.AvatarURL = githubUser.AvatarURL
+    user.Name = githubUser.Name
+    h.db.Save(&user)
 
     // Generate JWT token
     token, err := auth.GenerateToken(user.ID, user.Username, h.cfg.JWTSecret)
@@ -91,9 +96,17 @@ func (h *AuthHandler) GitHubCallback(c *gin.Context) {
         return
     }
 
+    // Return success response with token and user info
     c.JSON(http.StatusOK, gin.H{
-        "token": token,
-        "user":  user,
+        "message": "Login successful",
+        "token":   token,
+        "user": gin.H{
+            "id":         user.ID,
+            "username":   user.Username,
+            "email":      user.Email,
+            "name":       user.Name,
+            "avatar_url": user.AvatarURL,
+        },
     })
 }
 

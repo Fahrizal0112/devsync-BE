@@ -1,2 +1,10 @@
 .env
-/internal/config/devsync-474500-fe625b6b61ba.json
+*.json
+!go.mod
+!go.sum
+!package.json
+/internal/config/*.json
+/internal/config/service-account.json
+logs/
+*.log
+.DS_Store

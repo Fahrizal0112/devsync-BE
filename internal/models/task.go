@@ -27,37 +27,9 @@ type Task struct {
     UpdatedAt   time.Time      `json:"updated_at"`
     DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 
-    Project  Project  `json:"project"`
-    Sprint   *Sprint  `json:"sprint"`
-    Assignee *User    `json:"assignee"`
-    Comments []Comment `json:"comments"`
-}
-
-type Sprint struct {
-    ID          uint           `json:"id" gorm:"primaryKey"`
-    ProjectID   uint           `json:"project_id"`
-    Name        string         `json:"name" gorm:"not null"`
-    Description string         `json:"description"`
-    StartDate   time.Time      `json:"start_date"`
-    EndDate     time.Time      `json:"end_date"`
-    IsActive    bool           `json:"is_active" gorm:"default:false"`
-    CreatedAt   time.Time      `json:"created_at"`
-    UpdatedAt   time.Time      `json:"updated_at"`
-    DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
-
-    Project Project `json:"project"`
-    Tasks   []Task  `json:"tasks"`
-}
-
-type Comment struct {
-    ID        uint           `json:"id" gorm:"primaryKey"`
-    TaskID    uint           `json:"task_id"`
-    UserID    uint           `json:"user_id"`
-    Content   string         `json:"content" gorm:"type:text;not null"`
-    CreatedAt time.Time      `json:"created_at"`
-    UpdatedAt time.Time      `json:"updated_at"`
-    DeletedAt gorm.DeletedAt `json:"-" gorm:"index"`
-
-    Task Task `json:"task"`
-    User User `json:"user"`
+    // Relationships
+    Project  Project  `json:"project" gorm:"foreignKey:ProjectID"`
+    Sprint   *Sprint  `json:"sprint" gorm:"foreignKey:SprintID"`
+    Assignee *User    `json:"assignee" gorm:"foreignKey:AssigneeID"`
+    Comments []Comment `json:"comments" gorm:"foreignKey:TaskID"`
 }

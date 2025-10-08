@@ -19,7 +19,7 @@ type User struct {
 
     // Relationships
     Projects     []Project     `json:"projects" gorm:"many2many:user_projects;"`
-    Tasks        []Task        `json:"tasks"`
-    Comments     []Comment     `json:"comments"`
-    ChatMessages []ChatMessage `json:"chat_messages"`
+    Tasks        []Task        `json:"tasks" gorm:"foreignKey:AssigneeID"`
+    Comments     []Comment     `json:"comments" gorm:"foreignKey:UserID"`
+    ChatMessages []ChatMessage `json:"chat_messages" gorm:"foreignKey:UserID"`
 }

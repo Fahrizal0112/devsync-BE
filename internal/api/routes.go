@@ -2,6 +2,7 @@ package api
 
 import (
 	"devsync-be/internal/api/handlers"
+	"devsync-be/internal/storage"
     "devsync-be/internal/api/middleware"
     "devsync-be/internal/config"
     "devsync-be/internal/websocket"
@@ -12,7 +13,7 @@ import (
     "gorm.io/gorm"
 )
 
-func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Config) {
+func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Config, gcsStorage *storage.GCSStorage) {
     // Middleware
     r.Use(gin.Logger())
     r.Use(gin.Recovery())
@@ -22,6 +23,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
     authHandler := handlers.NewAuthHandler(db, cfg)
     projectHandler := handlers.NewProjectHandler(db)
     fileHandler := handlers.NewFileHandler(db, hub)
+    uploadHandler := handlers.NewUploadHandler(db, gcsStorage)
     taskHandler := handlers.NewTaskHandler(db, hub)
     chatHandler := handlers.NewChatHandler(db, hub)
 
@@ -78,6 +80,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
                 // Chat routes
                 projects.GET("/:id/messages", chatHandler.GetMessages)
                 projects.POST("/:id/messages", chatHandler.SendMessage)
+                projects.POST("/:id/upload", uploadHandler.UploadFile)
             }
         }
     }
