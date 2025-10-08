@@ -23,3 +23,8 @@ type User struct {
     Comments     []Comment     `json:"comments" gorm:"foreignKey:UserID"`
     ChatMessages []ChatMessage `json:"chat_messages" gorm:"foreignKey:UserID"`
 }
+
+type DevLoginRequest struct {
+    Username string `json:"username" binding:"required"`
+    Email    string `json:"email" binding:"required,email"`
+}

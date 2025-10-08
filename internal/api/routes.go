@@ -41,6 +41,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
         {
             auth.GET("/github", authHandler.GitHubLogin)
             auth.GET("/github/callback", authHandler.GitHubCallback)
+            auth.POST("/dev-login", authHandler.DevLogin) // Tambahkan ini
             auth.POST("/refresh", authHandler.RefreshToken)
         }
 

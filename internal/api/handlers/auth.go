@@ -159,3 +159,72 @@ func (h *AuthHandler) GetCurrentUser(c *gin.Context) {
 
     c.JSON(http.StatusOK, user)
 }
+
+// @Summary Development login
+// @Description Login for development purposes without GitHub
+// @Tags auth
+// @Param request body models.DevLoginRequest true "Dev login request"
+// @Success 200 {object} map[string]interface{}
+// @Router /auth/dev-login [post]
+func (h *AuthHandler) DevLogin(c *gin.Context) {
+    var request struct {
+        Username string `json:"username" binding:"required"`
+        Email    string `json:"email" binding:"required,email"`
+    }
+
+    if err := c.ShouldBindJSON(&request); err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+        return
+    }
+
+    // Find or create user for development
+    var user models.User
+    result := h.db.Where("email = ?", request.Email).First(&user)
+    if result.Error != nil {
+        if result.Error == gorm.ErrRecordNotFound {
+            // Create new user for development
+            user = models.User{
+                Username:  request.Username,
+                Email:     request.Email,
+                Name:      request.Username,
+                AvatarURL: "https://via.placeholder.com/150", // Default avatar
+            }
+            if createErr := h.db.Create(&user).Error; createErr != nil {
+                c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+                return
+            }
+        } else {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Database error"})
+            return
+        }
+    } else {
+        // Update existing user
+        user.Username = request.Username
+        if updateErr := h.db.Save(&user).Error; updateErr != nil {
+            c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user"})
+            return
+        }
+    }
+
+    // Generate JWT token
+    token, err := auth.GenerateToken(user.ID, user.Username, h.cfg.JWTSecret)
+    if err != nil {
+        c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+        return
+    }
+
+    // Return success response with token and user info
+    c.JSON(http.StatusOK, gin.H{
+        "message": "Login successful",
+        "token":   token,
+        "user": gin.H{
+            "id":         user.ID,
+            "username":   user.Username,
+            "email":      user.Email,
+            "name":       user.Name,
+            "avatar_url": user.AvatarURL,
+            "created_at": user.CreatedAt,
+            "updated_at": user.UpdatedAt,
+        },
+    })
+}
