@@ -1,24 +1,36 @@
 package api
 
 import (
-	"devsync-be/internal/api/handlers"
-	"devsync-be/internal/storage"
+    "time"
+    
+    "devsync-be/internal/api/handlers"
+    "devsync-be/internal/storage"
     "devsync-be/internal/api/middleware"
     "devsync-be/internal/config"
     "devsync-be/internal/websocket"
 
     "github.com/gin-gonic/gin"
+    "github.com/gin-contrib/cors"
     swaggerFiles "github.com/swaggo/files"
     ginSwagger "github.com/swaggo/gin-swagger"
     "gorm.io/gorm"
 )
 
 func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Config, gcsStorage *storage.GCSStorage) {
-    // Middleware
+    // CORS configuration - Allow all for development
+    r.Use(cors.New(cors.Config{
+        AllowAllOrigins:  true,
+        AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+        AllowHeaders:     []string{"*"},
+        ExposeHeaders:    []string{"*"},
+        AllowCredentials: false, // Must be false when AllowAllOrigins is true
+        MaxAge:           12 * time.Hour,
+    }))
+    
+    // Other middleware
     r.Use(gin.Logger())
     r.Use(gin.Recovery())
-    r.Use(middleware.CORS())
-
+    
     // Initialize handlers
     authHandler := handlers.NewAuthHandler(db, cfg)
     projectHandler := handlers.NewProjectHandler(db)
@@ -36,12 +48,12 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
     // API routes
     api := r.Group("/api/v1")
     {
-        // Auth routes
+        // Auth routes (public)
         auth := api.Group("/auth")
         {
             auth.GET("/github", authHandler.GitHubLogin)
             auth.GET("/github/callback", authHandler.GitHubCallback)
-            auth.POST("/dev-login", authHandler.DevLogin) // Tambahkan ini
+            auth.POST("/dev-login", authHandler.DevLogin)
             auth.POST("/refresh", authHandler.RefreshToken)
         }
 
@@ -55,8 +67,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
             // Project routes
             projects := protected.Group("/projects")
             {
-                projects.GET("/", projectHandler.GetProjects)
-                projects.POST("/", projectHandler.CreateProject)
+                projects.GET("", projectHandler.GetProjects)  // Remove trailing slash
+                projects.POST("", projectHandler.CreateProject)
                 projects.GET("/:id", projectHandler.GetProject)
                 projects.PUT("/:id", projectHandler.UpdateProject)
                 projects.DELETE("/:id", projectHandler.DeleteProject)
