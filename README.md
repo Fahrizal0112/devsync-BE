@@ -299,4 +299,3 @@ Untuk pertanyaan atau dukungan, silakan buat issue di repository ini atau hubung
 ---
 
 **DevSync Backend** - Empowering collaborative software development 🚀
-```
