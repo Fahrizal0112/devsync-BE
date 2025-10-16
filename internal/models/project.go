@@ -11,11 +11,13 @@ type Project struct {
     Description string         `json:"description"`
     GitHubRepo  string         `json:"github_repo"`
     IsPublic    bool           `json:"is_public" gorm:"default:false"`
+    CreatedBy   *uint          `json:"created_by"`
     CreatedAt   time.Time      `json:"created_at"`
     UpdatedAt   time.Time      `json:"updated_at"`
     DeletedAt   gorm.DeletedAt `json:"-" gorm:"index"`
 
     // Relationships
+    Creator       User            `json:"creator" gorm:"foreignKey:CreatedBy"`
     Users         []User          `json:"users" gorm:"many2many:user_projects;"`
     Files         []File          `json:"files" gorm:"foreignKey:ProjectID"`
     Tasks         []Task          `json:"tasks" gorm:"foreignKey:ProjectID"`

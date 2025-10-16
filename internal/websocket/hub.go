@@ -2,8 +2,12 @@ package websocket
 
 import (
     "encoding/json"
+    "fmt"
     "log"
     "net/http"
+
+    "devsync-be/internal/auth"
+    "devsync-be/internal/config"
 
     "github.com/gin-gonic/gin"
     "github.com/gorilla/websocket"
@@ -20,6 +24,7 @@ type Hub struct {
     broadcast  chan []byte
     register   chan *Client
     unregister chan *Client
+    config     *config.Config
 }
 
 type Client struct {
@@ -37,12 +42,13 @@ type Message struct {
     Data      interface{} `json:"data"`
 }
 
-func NewHub() *Hub {
+func NewHub(cfg *config.Config) *Hub {
     return &Hub{
         clients:    make(map[*Client]bool),
         broadcast:  make(chan []byte),
         register:   make(chan *Client),
         unregister: make(chan *Client),
+        config:     cfg,
     }
 }
 
@@ -92,9 +98,38 @@ func (h *Hub) HandleWebSocket(c *gin.Context) {
         return
     }
 
-    // Get user and project from query params or JWT
-    userID := uint(1)    // TODO: Extract from JWT
-    projectID := uint(1) // TODO: Extract from query params
+    // Extract and validate JWT token from query params
+    tokenString := c.Query("token")
+    if tokenString == "" {
+        log.Println("WebSocket: token query parameter required")
+        conn.Close()
+        return
+    }
+
+    // Validate JWT token and extract userID
+    claims, err := auth.ValidateToken(tokenString, h.config.JWTSecret)
+    if err != nil {
+        log.Println("WebSocket: Invalid token:", err)
+        conn.Close()
+        return
+    }
+
+    userID := claims.UserID
+
+    // Extract projectID from query params
+    projectIDStr := c.Query("project_id")
+    if projectIDStr == "" {
+        log.Println("WebSocket: project_id query parameter required")
+        conn.Close()
+        return
+    }
+    
+    var projectID uint
+    if _, err := fmt.Sscanf(projectIDStr, "%d", &projectID); err != nil {
+        log.Println("WebSocket: Invalid project_id format")
+        conn.Close()
+        return
+    }
 
     client := &Client{
         hub:       h,

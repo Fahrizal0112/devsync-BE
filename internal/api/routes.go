@@ -43,7 +43,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
     // Swagger documentation
     r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-    // WebSocket endpoint
+    // WebSocket endpoint (auth via query params)
     r.GET("/ws", hub.HandleWebSocket)
 
     // API routes

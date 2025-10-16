@@ -18,6 +18,15 @@ func NewProjectHandler(db *gorm.DB) *ProjectHandler {
 	return &ProjectHandler{db: db}
 }
 
+// Helper function to check if user is a member of the project
+func (h *ProjectHandler) isProjectMember(userID, projectID uint) bool {
+	var count int64
+	h.db.Table("user_projects").
+		Where("user_id = ? AND project_id = ?", userID, projectID).
+		Count(&count)
+	return count > 0
+}
+
 // @Summary Get projects
 // @Description Get all projects for authenticated user
 // @Tags projects
@@ -65,6 +74,10 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 		return
 	}
 
+	// Set creator
+	creatorID := userID.(uint)
+	project.CreatedBy = &creatorID
+
 	// Create project
 	if err := h.db.Create(&project).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create project"})
@@ -94,9 +107,21 @@ func (h *ProjectHandler) CreateProject(c *gin.Context) {
 // @Success 200 {object} models.Project
 // @Router /projects/{id} [get]
 func (h *ProjectHandler) GetProject(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	// Check if user is a member of the project
+	if !h.isProjectMember(userID.(uint), uint(id)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: You are not a member of this project"})
 		return
 	}
 
@@ -118,9 +143,21 @@ func (h *ProjectHandler) GetProject(c *gin.Context) {
 // @Success 200 {object} models.Project
 // @Router /projects/{id} [put]
 func (h *ProjectHandler) UpdateProject(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	// Check if user is a member of the project
+	if !h.isProjectMember(userID.(uint), uint(id)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied: You are not a member of this project"})
 		return
 	}
 
@@ -151,9 +188,28 @@ func (h *ProjectHandler) UpdateProject(c *gin.Context) {
 // @Success 204
 // @Router /projects/{id} [delete]
 func (h *ProjectHandler) DeleteProject(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
 	id, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	// Check if project exists and user is the creator
+	var project models.Project
+	if err := h.db.First(&project, id).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	// Only creator can delete the project
+	if project.CreatedBy == nil || *project.CreatedBy != userID.(uint) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only project creator can delete this project"})
 		return
 	}
 
@@ -173,9 +229,21 @@ func (h *ProjectHandler) DeleteProject(c *gin.Context) {
 // @Success 200 {array} models.User
 // @Router /projects/{id}/members [get]
 func (h *ProjectHandler) GetMembers(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	// Check if user is a member of the project
+	if !h.isProjectMember(userID.(uint), uint(projectID)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied. You are not a member of this project"})
 		return
 	}
 
@@ -217,9 +285,21 @@ type AddMemberRequest struct {
 // @Success 201 {object} models.User
 // @Router /projects/{id}/members [post]
 func (h *ProjectHandler) AddMember(c *gin.Context) {
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"})
+		return
+	}
+
+	// Check if user is a member of the project
+	if !h.isProjectMember(userID.(uint), uint(projectID)) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Access denied. You are not a member of this project"})
 		return
 	}
 
@@ -298,6 +378,12 @@ func (h *ProjectHandler) AddMember(c *gin.Context) {
 // @Success 204
 // @Router /projects/{id}/members/{userId} [delete]
 func (h *ProjectHandler) RemoveMember(c *gin.Context) {
+	currentUserID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not found"})
+		return
+	}
+
 	projectID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid project ID"}) 
@@ -314,6 +400,18 @@ func (h *ProjectHandler) RemoveMember(c *gin.Context) {
 	var project models.Project
 	if err := h.db.First(&project, projectID).Error; err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": "Project not found"})
+		return
+	}
+
+	// Only creator can remove members
+	if project.CreatedBy == nil || *project.CreatedBy != currentUserID.(uint) {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Only project creator can remove members"})
+		return
+	}
+
+	// Creator cannot remove themselves
+	if project.CreatedBy != nil && uint(userID) == *project.CreatedBy {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Project creator cannot be removed from the project"})
 		return
 	}
 

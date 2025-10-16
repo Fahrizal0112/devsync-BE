@@ -33,7 +33,7 @@ func main() {
 	}
 	defer gcsStorage.Close()
 
-	hub := websocket.NewHub()
+	hub := websocket.NewHub(cfg)
 	go hub.Run()
 
 	r := gin.Default()

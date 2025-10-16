@@ -32,5 +32,37 @@ func Initialize(databaseURL string) (*gorm.DB, error) {
 		return nil, err
 	}
 
+	// Migrate existing projects without CreatedBy
+	err = migrateExistingProjects(db)
+	if err != nil {
+		return nil, err
+	}
+
 	return db, nil
+}
+
+func migrateExistingProjects(db *gorm.DB) error {
+	// Find projects without CreatedBy
+	var projects []models.Project
+	err := db.Where("created_by IS NULL").Find(&projects).Error
+	if err != nil {
+		return err
+	}
+
+	// For each project, set the first user as creator
+	for _, project := range projects {
+		var firstUser models.User
+		err := db.Joins("JOIN user_projects ON user_projects.user_id = users.id").
+			Where("user_projects.project_id = ?", project.ID).
+			Order("user_projects.created_at ASC").
+			First(&firstUser).Error
+		
+		if err == nil {
+			// Set the first user as creator
+			project.CreatedBy = &firstUser.ID
+			db.Save(&project)
+		}
+	}
+
+	return nil
 }
