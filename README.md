@@ -162,12 +162,21 @@ docker-compose up
 - `POST /auth/refresh` - Refresh JWT token
 - `POST /auth/dev-login` - Development login (tanpa GitHub)
 
+### Users
+- `GET /api/v1/users/search` - Search users by username or email
+- `GET /api/v1/users` - Get all users (with pagination)
+
 ### Projects
 - `GET /api/v1/projects` - Get all projects
 - `POST /api/v1/projects` - Create new project
 - `GET /api/v1/projects/:id` - Get project by ID
 - `PUT /api/v1/projects/:id` - Update project
 - `DELETE /api/v1/projects/:id` - Delete project
+
+### Project Members
+- `GET /api/v1/projects/:id/members` - Get project members
+- `POST /api/v1/projects/:id/members` - Add member to project
+- `DELETE /api/v1/projects/:id/members/:userId` - Remove member from project
 
 ### Files
 - `GET /api/v1/projects/:id/files` - Get project files

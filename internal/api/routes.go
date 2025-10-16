@@ -38,6 +38,7 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
     uploadHandler := handlers.NewUploadHandler(db, gcsStorage)
     taskHandler := handlers.NewTaskHandler(db, hub)
     chatHandler := handlers.NewChatHandler(db, hub)
+    userHandler := handlers.NewUserHandler(db)
 
     // Swagger documentation
     r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
@@ -63,6 +64,8 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
         {
             // User routes
             protected.GET("/me", authHandler.GetCurrentUser)
+            protected.GET("/users/search", userHandler.SearchUsers)
+            protected.GET("/users", userHandler.GetUsers)
 
             // Project routes
             projects := protected.Group("/projects")
@@ -72,6 +75,11 @@ func SetupRoutes(r *gin.Engine, db *gorm.DB, hub *websocket.Hub, cfg *config.Con
                 projects.GET("/:id", projectHandler.GetProject)
                 projects.PUT("/:id", projectHandler.UpdateProject)
                 projects.DELETE("/:id", projectHandler.DeleteProject)
+
+                // Member routes
+                projects.GET("/:id/members", projectHandler.GetMembers)
+                projects.POST("/:id/members", projectHandler.AddMember)
+                projects.DELETE("/:id/members/:userId", projectHandler.RemoveMember)
 
                 // File routes
                 projects.GET("/:id/files", fileHandler.GetFiles)
